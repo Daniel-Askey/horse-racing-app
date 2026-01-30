@@ -131,5 +131,51 @@ router.get('/usage', (req, res) => {
         usage: getUsageStats(),
     });
 });
+/**
+ * GET /api/test-gemini
+ * Tests if Gemini API key is working
+ */
+router.get('/test-gemini', async (req, res) => {
+    try {
+        const { GoogleGenAI } = await import('@google/genai');
+        
+        const apiKey = process.env.API_KEY;
+        
+        if (!apiKey) {
+            return res.status(500).json({
+                success: false,
+                error: 'API_KEY not found in environment variables',
+            });
+        }
+        
+        // Test the API key
+        const ai = new GoogleGenAI({ apiKey });
+        const model = 'gemini-2.5-flash'; // CHANGED THIS LINE
+        
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: 'Say "Hello! API key is working!" in one sentence.',
+            config: {
+                temperature: 0.5,
+                maxOutputTokens: 50,
+            }
+        });
+        
+        res.json({
+            success: true,
+            message: 'Gemini API key is working!',
+            testResponse: response.text,
+            apiKeyPreview: `${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`,
+        });
+        
+    } catch (error) {
+        console.error('❌ Gemini API test failed:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            hint: 'Check if your API_KEY in .env is correct',
+        });
+    }
+});
 
 export default router;

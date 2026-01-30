@@ -99,7 +99,7 @@ export async function extractHorseDataFromHtml(html: string, horseName: string):
   await rateLimiter.checkAndWait();
   
   // Use Flash instead of Pro for free tier (10x more requests)
-  const model = 'gemini-2.5-flash-002';
+  const model = 'gemini-2.5-flash';
   
   const prompt = `
     Analyze this horse racing HTML data and extract the following information for horse "${horseName}".
@@ -237,7 +237,7 @@ export async function extractMultipleHorsesData(
     
     await rateLimiter.checkAndWait();
     
-    const model = 'gemini-2.5-flash-002';
+    const model = 'gemini-2.5-flash';
     
     const prompt = `
     Analyze this horse racing HTML data and extract information for ALL of these horses: ${horseNames.join(', ')}
@@ -318,7 +318,7 @@ export async function generateRaceInsights(
     
     await rateLimiter.checkAndWait();
     
-    const model = 'gemini-2.5-flash-002';
+    const model = 'gemini-2.5-flash';
     
     const topThree = topHorses.slice(0, 3).map((h, i) => 
         `${i+1}. ${h.entry.horseName} (#${h.entry.postPosition}) - Composite Score: ${h.scores.composite.toFixed(1)} (Speed: ${Math.round(h.scores.speed)}, Form: ${Math.round(h.scores.form)}, Class: ${Math.round(h.scores.class)})`

@@ -1,16 +1,21 @@
-import express from 'express';
-import cors from 'cors';
 import dotenv from 'dotenv';
-import horseDataRoutes from './routes/horseData';
-
 // Load environment variables from .env file
 dotenv.config();
+
+import express from 'express';
+import cors from 'cors';
+import horseDataRoutes from './routes/horseData';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors()); // Allow requests from any origin (including AI Studio)
+// Middleware - CORS with explicit configuration
+app.use(cors({
+    origin: '*', // Allow all origins (for development)
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+}));
 app.use(express.json({ limit: '10mb' })); // Parse JSON bodies
 
 // Routes
