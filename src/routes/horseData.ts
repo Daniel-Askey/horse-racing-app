@@ -1,47 +1,8 @@
 import express from 'express';
-import { fetchRaceData } from '../services/fetchRaceData';
 import { extractMultipleHorsesData, generateRaceInsights, getUsageStats } from '../services/geminiService';
+import { rpscrapeService } from '../services/rpscrapeService';
 
 const router = express.Router();
-
-/**
- * GET /api/race-data
- * Fetches race entries and HTML from racing websites
- */
-router.get('/race-data', async (req, res) => {
-    try {
-        const { track, date, raceNumber } = req.query;
-        
-        if (!track || !date || !raceNumber) {
-            return res.status(400).json({ 
-                success: false,
-                error: 'Missing required parameters: track, date, raceNumber' 
-            });
-        }
-        
-        console.log(`\n📋 Request: ${track}, Race ${raceNumber}, ${date}`);
-        
-        const raceData = await fetchRaceData(
-            track as string,
-            date as string,
-            raceNumber as string
-        );
-        
-        console.log(`✅ Found ${raceData.horses.length} horses from ${raceData.source}`);
-        
-        res.json({
-            success: true,
-            data: raceData,
-        });
-        
-    } catch (error) {
-        console.error('❌ Error in /api/race-data:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error instanceof Error ? error.message : 'Unknown error' 
-        });
-    }
-});
 
 /**
  * POST /api/analyze-horses
@@ -177,5 +138,191 @@ router.get('/test-gemini', async (req, res) => {
         });
     }
 });
+
+/**
+ * GET /api/racecourses?date=2026-02-07&region=GB
+ */
+router.get('/racecourses', async (req, res) => {
+    try {
+        const { date, region = 'GB' } = req.query;
+        
+        if (!date || typeof date !== 'string') {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing or invalid date parameter (format: YYYY-MM-DD)',
+            });
+        }
+        
+        const courses = await rpscrapeService.getAvailableCourses(date, region as string);
+        
+        res.json({
+            success: true,
+            date,
+            region,
+            courses,
+        });
+        
+    } catch (error) {
+        console.error('❌ Error in /api/racecourses:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+/**
+ * GET /api/races?course=Doncaster&date=2026-02-07&region=GB
+ */
+router.get('/races', async (req, res) => {
+    try {
+        const { course, date, region = 'GB' } = req.query;
+        
+        if (!course || typeof course !== 'string') {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing or invalid course parameter',
+            });
+        }
+        
+        if (!date || typeof date !== 'string') {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing or invalid date parameter (format: YYYY-MM-DD)',
+            });
+        }
+        
+        const races = await rpscrapeService.getRaceTimes(course, date, region as string);
+        
+        res.json({
+            success: true,
+            course,
+            date,
+            region,
+            races,
+        });
+        
+    } catch (error) {
+        console.error('❌ Error in /api/races:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+/**
+ * POST /api/analyze-race
+ */
+router.post('/analyze-race', async (req, res) => {
+    try {
+        const { course, time, date, region = 'GB' } = req.body;
+        
+        if (!course || !time || !date) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: course, time, date',
+            });
+        }
+        
+        console.log(`\n🤖 Analyzing: ${course} ${time} on ${date}`);
+        
+        const raceDetails = await rpscrapeService.getRaceDetails(course, time, date, region);
+        
+        if (raceDetails.horses.length === 0) {
+            throw new Error('No horses found');
+        }
+        
+        const geminiData = rpscrapeService.transformToGeminiFormat(raceDetails);
+        
+        // Score calculation - FIXED to match HorseAnalysis type
+        const analyzedHorses = geminiData.map((extractedData: any) => {
+            const horse = raceDetails.horses.find(h => h.name === extractedData.horse)!;
+            
+            const scores = {
+                speed: normalizeSpeed(extractedData.speed),
+                form: normalizeForm(extractedData.form),
+                class: 50,
+                pace: 50,
+                jockey: extractedData.jockey.meetWinPercent,
+                trainer: extractedData.trainer.meetWinPercent,
+                composite: 0,
+            };
+            
+            scores.composite = 
+                (scores.speed * 0.30) +
+                (scores.form * 0.30) +
+                (scores.class * 0.20) +
+                (scores.pace * 0.15) +
+                (scores.jockey * 0.05) +
+                (scores.trainer * 0.05);
+            
+            return {
+                entry: {
+                    horseName: extractedData.horse,
+                    postPosition: horse.postPosition,
+                    jockey: horse.jockey,
+                    trainer: horse.trainer,
+                },
+                scores,
+                data: extractedData,              // ← ADDED: This was missing!
+                extractedData: extractedData,     // ← Keep for compatibility
+                dataConfidence: 0.85,
+            };
+        });
+        
+        const rankedHorses = analyzedHorses.sort((a, b) => b.scores.composite - a.scores.composite);
+        
+        // Use your existing Gemini service for insights
+        const { generateRaceInsights } = await import('../services/geminiService');
+        
+        const insights = await generateRaceInsights(
+            { name: course },
+            { raceNumber: 1, distance: raceDetails.distance, surface: 'Turf' },
+            rankedHorses.slice(0, 3)
+        );
+        
+        res.json({
+            success: true,
+            race: {
+                course: raceDetails.courseName,
+                time: raceDetails.time,
+                name: raceDetails.raceName,
+                distance: raceDetails.distance,
+                prize: raceDetails.prize,
+            },
+            rankedHorses,
+            insights,
+        });
+        
+    } catch (error) {
+        console.error('❌ Error in /api/analyze-race:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+// Helper functions
+function normalizeSpeed(speedData: any): number {
+    if (!speedData?.bestBeyer) return 50;
+    return Math.min(100, Math.max(0, (speedData.bestBeyer / 120) * 100));
+}
+
+function normalizeForm(formData: any): number {
+    if (!formData?.lastThreeRaces || formData.lastThreeRaces.length === 0) return 50;
+    
+    let points = 0;
+    formData.lastThreeRaces.forEach((race: any, index: number) => {
+        const recency = 1 - (index * 0.2);
+        if (race.position === 1) points += 30 * recency;
+        else if (race.position === 2) points += 20 * recency;
+        else if (race.position === 3) points += 10 * recency;
+        else points += 5 * recency;
+    });
+    
+    return Math.min(100, points);
+}
 
 export default router;
