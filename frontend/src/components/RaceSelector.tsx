@@ -20,19 +20,24 @@ export const RaceSelector: React.FC<RaceSelectorProps> = ({ onCourseSelect, onRa
   const [selectedRaceId, setSelectedRaceId] = useState<string>('');
 
   useEffect(() => {
-    if (selectedCourseId) {
-      const course = RACE_COURSES.find(c => c.id === selectedCourseId) || null;
-      onCourseSelect(course);
-      setRacesForCourse(RACES_BY_COURSE[selectedCourseId] || []);
-      setSelectedRaceId('');
-      onRaceSelect(null);
-    } else {
-      onCourseSelect(null);
-      setRacesForCourse([]);
-      setSelectedRaceId('');
-      onRaceSelect(null);
-    }
-  }, [selectedCourseId, onCourseSelect, onRaceSelect]);
+  if (!selectedCourseId) {
+    setRacesForCourse([]);
+    setSelectedRaceId('');
+    onCourseSelect(null);
+    onRaceSelect(null);
+    return;
+  }
+
+  const course = RACE_COURSES.find(c => c.code === selectedCourseId) || null;
+  onCourseSelect(course);
+
+  const races = RACES_BY_COURSE[selectedCourseId] ?? [];
+  setRacesForCourse(races);
+
+  setSelectedRaceId('');
+  onRaceSelect(null);
+}, [selectedCourseId]);
+
   
   useEffect(() => {
     // Reset selections when date changes
@@ -79,7 +84,7 @@ export const RaceSelector: React.FC<RaceSelectorProps> = ({ onCourseSelect, onRa
             disabled={disabled}
             options={[
               { value: '', label: 'Select a course' },
-              ...RACE_COURSES.map(c => ({ value: c.id, label: `${c.name} (${c.country})` }))
+              ...RACE_COURSES.map(c => ({ value: c.code, label: `${c.name} (${c.location})` }))
             ]}
           />
         </div>

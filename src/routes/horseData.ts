@@ -1,5 +1,5 @@
 import express from 'express';
-import { fetchRaceData } from '../services/webScrapingService';
+import { fetchRaceData } from '../services/fetchRaceData';
 import { extractMultipleHorsesData, generateRaceInsights, getUsageStats } from '../services/geminiService';
 
 const router = express.Router();
@@ -24,7 +24,7 @@ router.get('/race-data', async (req, res) => {
         const raceData = await fetchRaceData(
             track as string,
             date as string,
-            parseInt(raceNumber as string)
+            raceNumber as string
         );
         
         console.log(`✅ Found ${raceData.horses.length} horses from ${raceData.source}`);

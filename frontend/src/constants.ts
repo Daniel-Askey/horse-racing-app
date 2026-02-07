@@ -2,27 +2,39 @@
 import type { RaceCourse, Race, HorseEntry } from './types';
 
 export const RACE_COURSES: RaceCourse[] = [
-  { id: 'CD', name: 'Churchill Downs', country: 'USA' },
-  { id: 'SA', name: 'Santa Anita Park', country: 'USA' },
-  { id: 'BEL', name: 'Belmont Park', country: 'USA' },
-  { id: 'ASC', name: 'Ascot', country: 'UK' },
-  { id: 'CUR', name: 'Curragh', country: 'IRE' },
-  { id: 'DUB', name: 'Meydan Racecourse', country: 'UAE' },
+    // UK Tracks (Racing Post)
+    { name: 'Cheltenham', code: 'CHE', location: 'Cheltenham, UK' },
+    { name: 'Ascot', code: 'ASC', location: 'Ascot, UK' },
+    { name: 'Newmarket', code: 'NEW', location: 'Newmarket, UK' },
+    { name: 'York', code: 'YOR', location: 'York, UK' },
+    { name: 'Goodwood', code: 'GOO', location: 'Goodwood, UK' },
+    { name: 'Kempton', code: 'KEM', location: 'Kempton, UK' },
+    { name: 'Doncaster', code: 'DON', location: 'Doncaster, UK' },
+    
+    // US Tracks (Equibase)
+    { name: 'Churchill Downs', code: 'CD', location: 'Louisville, KY' },
+    { name: 'Santa Anita', code: 'SA', location: 'Arcadia, CA' },
+    { name: 'Gulfstream Park', code: 'GP', location: 'Hallandale Beach, FL' },
+    { name: 'Keeneland', code: 'KEE', location: 'Lexington, KY' },
 ];
 
 export const RACES_BY_COURSE: Record<string, Race[]> = {
-  'CD': [
-    { id: 'CD1', raceNumber: 1, time: '1:00 PM', distance: '6 Furlongs', surface: 'Dirt', raceType: 'Maiden Special Weight', horseCount: 8 },
-    { id: 'CD7', raceNumber: 7, time: '4:30 PM', distance: '1 1/8 Miles', surface: 'Turf', raceType: 'Allowance Optional Claiming', horseCount: 10 },
-    { id: 'CD9', raceNumber: 9, time: '5:45 PM', distance: '1 Mile', surface: 'Dirt', raceType: 'Stakes', horseCount: 7 },
+  'KEM': [
+    { id: 'KEM1', raceNumber: "1", time: '12:52 PM', distance: '2 mile', surface: 'Dirt', raceType: 'Maiden Hurdle', horseCount: 17 },
+    { id: 'CD7', raceNumber: "7", time: '4:30 PM', distance: '1 1/8 Miles', surface: 'Turf', raceType: 'Allowance Optional Claiming', horseCount: 10 },
+    { id: 'CD9', raceNumber: "9", time: '5:45 PM', distance: '1 Mile', surface: 'Dirt', raceType: 'Stakes', horseCount: 7 },
   ],
   'SA': [
-    { id: 'SA3', raceNumber: 3, time: '2:15 PM', distance: '5 1/2 Furlongs', surface: 'Turf', raceType: 'Claiming', horseCount: 12 },
-    { id: 'SA8', raceNumber: 8, time: '5:00 PM', distance: '1 1/4 Miles', surface: 'Dirt', raceType: 'Grade 1 Stakes', horseCount: 6 },
+    { id: 'SA3', raceNumber: "3", time: '2:15 PM', distance: '5 1/2 Furlongs', surface: 'Turf', raceType: 'Claiming', horseCount: 12 },
+    { id: 'SA8', raceNumber: "8", time: '5:00 PM', distance: '1 1/4 Miles', surface: 'Dirt', raceType: 'Grade 1 Stakes', horseCount: 6 },
   ],
   'ASC': [
-      { id: 'ASC2', raceNumber: 2, time: '2:30 PM', distance: '1 Mile', surface: 'Turf', raceType: 'Group 2', horseCount: 14 },
-      { id: 'ASC4', raceNumber: 4, time: '3:40 PM', distance: '5 Furlongs', surface: 'Turf', raceType: 'Group 1', horseCount: 18 },
+      { id: 'ASC2', raceNumber: "2", time: '2:30 PM', distance: '1 Mile', surface: 'Turf', raceType: 'Group 2', horseCount: 14 },
+      { id: 'ASC4', raceNumber: "4", time: '3:40 PM', distance: '5 Furlongs', surface: 'Turf', raceType: 'Group 1', horseCount: 18 },
+  ],
+  'DON': [
+      { id: 'DON7', raceNumber: "16:10", time: '4:10 PM', distance: '2 Mile 3 Furlongs', surface: 'Dirt', raceType: 'Handicap Hurdle', horseCount: 6 },
+      { id: 'ASC4', raceNumber: "4", time: '3:40 PM', distance: '5 Furlongs', surface: 'Turf', raceType: 'Group 1', horseCount: 18 },
   ]
   // Add more races for other courses
 };

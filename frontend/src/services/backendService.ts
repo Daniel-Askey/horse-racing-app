@@ -47,7 +47,7 @@ export interface BackendInsights {
 export async function fetchRaceDataFromBackend(
     track: string,
     date: string,
-    raceNumber: number
+    raceNumber: string
 ): Promise<BackendRaceData> {
     console.log(`📥 Fetching race data from backend...`);
     

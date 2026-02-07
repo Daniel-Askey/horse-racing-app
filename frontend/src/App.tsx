@@ -56,7 +56,7 @@ const App: React.FC = () => {
       const result = await fetchRaceDataFromBackend(
         'Churchill Downs',
         '2026-01-29',
-        7
+        '16:10'
       );
       
       console.log('✅ Backend response:', result);

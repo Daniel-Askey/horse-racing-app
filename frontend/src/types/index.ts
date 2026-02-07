@@ -1,13 +1,13 @@
 
 export interface RaceCourse {
-  id: string;
   name: string;
-  country: string;
+  code: string;
+  location: string;
 }
 
 export interface Race {
   id: string;
-  raceNumber: number;
+  raceNumber: string;
   time: string;
   distance: string;
   surface: string;
