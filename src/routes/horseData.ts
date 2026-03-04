@@ -239,6 +239,8 @@ router.post('/analyze-race', async (req, res) => {
             calculateFormScore, 
             calculateClassScore, 
             calculateSpeedScore,
+            calculateDistanceSuitability,  // NEW
+            calculatePaceScore,  // NEW
             calculateCompositeScore 
         } = await import('../utils/scoring');
         
@@ -248,34 +250,58 @@ router.post('/analyze-race', async (req, res) => {
         };
         
         const analyzedHorses = raceDetails.horses.map((horse) => {
-            const racecardData = {
-                form: horse.form,
-                lastRun: horse.lastRun,
-                rpr: horse.ratings?.rpr || null,
-                ts: horse.ratings?.ts || null,
-                ofr: horse.ratings?.ofr || null,
-                trainerRtf: horse.trainerStats?.rtf || null,
-                age: horse.age,
-                weight: horse.weight,
-            };
+    const racecardData = {
+        form: horse.form,
+        lastRun: horse.lastRun,
+        rpr: horse.ratings?.rpr || null,
+        ts: horse.ratings?.ts || null,
+        ofr: horse.ratings?.ofr || null,
+        trainerRtf: horse.trainerStats?.rtf || null,
+        age: horse.age,
+        weight: horse.weight,
+    };
+    
+    // Calculate individual scores
+    const speedScore = calculateSpeedScore(racecardData);
+    const formScore = calculateFormScore(racecardData);
+    const classScore = calculateClassScore(racecardData, raceContext);
+    
+    // NEW: Add distance suitability
+    const distanceSuitability = calculateDistanceSuitability(racecardData, raceContext.distance);
             
-            // Calculate individual scores
-            const speedScore = calculateSpeedScore(racecardData);
-            const formScore = calculateFormScore(racecardData);
-            const classScore = calculateClassScore(racecardData, raceContext);
-            
-            const paceScore = 50;
+            const paceScore = calculatePaceScore(racecardData);  // NEW: Actually calculate it
             const jockeyScore = 50;
             const trainerScore = racecardData.trainerRtf || 50;
-            
+
             const compositeScore = calculateCompositeScore({
                 speed: speedScore,
                 form: formScore,
                 class: classScore,
+                distance: distanceSuitability,  // NEW
                 pace: paceScore,
                 jockey: jockeyScore,
                 trainer: trainerScore,
             });
+
+            // NEW: Calculate data confidence and apply penalty for missing data
+            const hasOR = racecardData.ofr !== null;
+            const hasRPR = racecardData.rpr !== null || racecardData.ts !== null;
+            const hasForm = racecardData.form && racecardData.form.length > 0;
+
+            const dataConfidence = 
+                (hasOR ? 0.35 : 0) +    // 35% for Official Rating
+                (hasRPR ? 0.35 : 0) +   // 35% for RPR/TS
+                (hasForm ? 0.30 : 0);   // 30% for Form
+
+            // Apply confidence penalty
+            let adjustedComposite = compositeScore;
+            if (dataConfidence < 0.6) {
+                // Penalize horses with missing data
+                const confidencePenalty = 0.85; // 15% reduction
+                adjustedComposite = compositeScore * confidencePenalty;
+                
+                console.log(`   ${horse.name}: Low confidence (${(dataConfidence * 100).toFixed(0)}%) - Applied ${((1 - confidencePenalty) * 100).toFixed(0)}% penalty`);
+            }
             
             // Log individual horse scores for debugging
             console.log(`   ${horse.name}: Composite=${compositeScore.toFixed(1)} (Speed=${speedScore.toFixed(1)}, Form=${formScore.toFixed(1)}, Class=${classScore.toFixed(1)}) | Form="${horse.form}" OR=${horse.ratings?.ofr}`);
@@ -314,14 +340,15 @@ router.post('/analyze-race', async (req, res) => {
                     speed: speedScore,
                     form: formScore,
                     class: classScore,
+                    distance: distanceSuitability,  // NEW
                     pace: paceScore,
                     jockey: jockeyScore,
                     trainer: trainerScore,
-                    composite: compositeScore,
+                    composite: adjustedComposite,  // Use adjusted score
                 },
                 data: extractedData,
                 extractedData: extractedData,
-                dataConfidence: 0.80,
+                dataConfidence: dataConfidence,  // Use calculated confidence
             };
         });
         

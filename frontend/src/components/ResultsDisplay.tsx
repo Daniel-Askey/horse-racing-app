@@ -19,7 +19,7 @@ const ScoreCell: React.FC<{ score: number }> = ({ score }) => {
   else if (roundedScore >= 80) colorClass = 'text-cyan-400';
   else if (roundedScore >= 70) colorClass = 'text-yellow-400';
 
-  return <span className={`font-mono font-semibold ${colorClass}`}>{score.toFixed(1)}</span>;
+  return <span className={`font-mono font-semibold ${colorClass}`}>{(score ?? 0).toFixed(1)}</span>;
 };
 
 
