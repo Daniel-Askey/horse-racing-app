@@ -212,7 +212,7 @@ router.get('/races', async (req, res) => {
 });
 
 /**
- * POST /api/analyze-race
+ * POST /api/analyze-race - RACECARD DATA ONLY
  */
 router.post('/analyze-race', async (req, res) => {
     try {
@@ -221,7 +221,7 @@ router.post('/analyze-race', async (req, res) => {
         if (!course || !time || !date) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: course, time, date',
+                error: 'Missing required fields',
             });
         }
         
@@ -233,47 +233,105 @@ router.post('/analyze-race', async (req, res) => {
             throw new Error('No horses found');
         }
         
-        const geminiData = rpscrapeService.transformToGeminiFormat(raceDetails);
+        console.log(`📊 Scoring ${raceDetails.horses.length} horses using racecard data...`);
         
-        // Score calculation - FIXED to match HorseAnalysis type
-        const analyzedHorses = geminiData.map((extractedData: any) => {
-            const horse = raceDetails.horses.find(h => h.name === extractedData.horse)!;
-            
-            const scores = {
-                speed: normalizeSpeed(extractedData.speed),
-                form: normalizeForm(extractedData.form),
-                class: 50,
-                pace: 50,
-                jockey: extractedData.jockey.meetWinPercent,
-                trainer: extractedData.trainer.meetWinPercent,
-                composite: 0,
+        const { 
+            calculateFormScore, 
+            calculateClassScore, 
+            calculateSpeedScore,
+            calculateCompositeScore 
+        } = await import('../utils/scoring');
+        
+        const raceContext = {
+            raceName: raceDetails.raceName,
+            distance: raceDetails.distance,
+        };
+        
+        const analyzedHorses = raceDetails.horses.map((horse) => {
+            const racecardData = {
+                form: horse.form,
+                lastRun: horse.lastRun,
+                rpr: horse.ratings?.rpr || null,
+                ts: horse.ratings?.ts || null,
+                ofr: horse.ratings?.ofr || null,
+                trainerRtf: horse.trainerStats?.rtf || null,
+                age: horse.age,
+                weight: horse.weight,
             };
             
-            scores.composite = 
-                (scores.speed * 0.30) +
-                (scores.form * 0.30) +
-                (scores.class * 0.20) +
-                (scores.pace * 0.15) +
-                (scores.jockey * 0.05) +
-                (scores.trainer * 0.05);
+            // Calculate individual scores
+            const speedScore = calculateSpeedScore(racecardData);
+            const formScore = calculateFormScore(racecardData);
+            const classScore = calculateClassScore(racecardData, raceContext);
+            
+            const paceScore = 50;
+            const jockeyScore = 50;
+            const trainerScore = racecardData.trainerRtf || 50;
+            
+            const compositeScore = calculateCompositeScore({
+                speed: speedScore,
+                form: formScore,
+                class: classScore,
+                pace: paceScore,
+                jockey: jockeyScore,
+                trainer: trainerScore,
+            });
+            
+            // Log individual horse scores for debugging
+            console.log(`   ${horse.name}: Composite=${compositeScore.toFixed(1)} (Speed=${speedScore.toFixed(1)}, Form=${formScore.toFixed(1)}, Class=${classScore.toFixed(1)}) | Form="${horse.form}" OR=${horse.ratings?.ofr}`);
+            
+            const extractedData = {
+                horse: horse.name,
+                speed: {
+                    bestBeyer: horse.ratings?.rpr,
+                    bestAtDistance: horse.ratings?.ts,
+                    lastThreeBeyers: [],
+                },
+                form: {
+                    formString: horse.form,
+                    daysSinceLastRace: calculateDaysSince(horse.lastRun),
+                    lastThreeRaces: [],
+                    workouts: [],
+                },
+                jockey: {
+                    name: horse.jockey,
+                    meetWinPercent: jockeyScore,
+                },
+                trainer: {
+                    name: horse.trainer,
+                    meetWinPercent: trainerScore,
+                },
+            };
             
             return {
                 entry: {
-                    horseName: extractedData.horse,
+                    horseName: horse.name,
                     postPosition: horse.postPosition,
                     jockey: horse.jockey,
                     trainer: horse.trainer,
                 },
-                scores,
-                data: extractedData,              // ← ADDED: This was missing!
-                extractedData: extractedData,     // ← Keep for compatibility
-                dataConfidence: 0.85,
+                scores: {
+                    speed: speedScore,
+                    form: formScore,
+                    class: classScore,
+                    pace: paceScore,
+                    jockey: jockeyScore,
+                    trainer: trainerScore,
+                    composite: compositeScore,
+                },
+                data: extractedData,
+                extractedData: extractedData,
+                dataConfidence: 0.80,
             };
         });
         
         const rankedHorses = analyzedHorses.sort((a, b) => b.scores.composite - a.scores.composite);
         
-        // Use your existing Gemini service for insights
+        console.log(`\n✅ Scoring complete - Top 3:`);
+        rankedHorses.slice(0, 3).forEach((h, i) => {
+            console.log(`   ${i + 1}. ${h.entry.horseName}: ${h.scores.composite.toFixed(1)} (Speed: ${h.scores.speed.toFixed(1)}, Form: ${h.scores.form.toFixed(1)}, Class: ${h.scores.class.toFixed(1)})`);
+        });
+        
         const { generateRaceInsights } = await import('../services/geminiService');
         
         const insights = await generateRaceInsights(
@@ -296,7 +354,7 @@ router.post('/analyze-race', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('❌ Error in /api/analyze-race:', error);
+        console.error('❌ Error:', error);
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -304,25 +362,16 @@ router.post('/analyze-race', async (req, res) => {
     }
 });
 
-// Helper functions
-function normalizeSpeed(speedData: any): number {
-    if (!speedData?.bestBeyer) return 50;
-    return Math.min(100, Math.max(0, (speedData.bestBeyer / 120) * 100));
-}
-
-function normalizeForm(formData: any): number {
-    if (!formData?.lastThreeRaces || formData.lastThreeRaces.length === 0) return 50;
-    
-    let points = 0;
-    formData.lastThreeRaces.forEach((race: any, index: number) => {
-        const recency = 1 - (index * 0.2);
-        if (race.position === 1) points += 30 * recency;
-        else if (race.position === 2) points += 20 * recency;
-        else if (race.position === 3) points += 10 * recency;
-        else points += 5 * recency;
-    });
-    
-    return Math.min(100, points);
+function calculateDaysSince(lastRun: string): number {
+    if (!lastRun) return 999;
+    try {
+        const lastRunDate = new Date(lastRun);
+        const today = new Date();
+        const diffTime = today.getTime() - lastRunDate.getTime();
+        return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    } catch {
+        return 999;
+    }
 }
 
 export default router;
