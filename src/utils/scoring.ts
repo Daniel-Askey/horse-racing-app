@@ -424,54 +424,60 @@ export function calculateCompositeScore(scores: {
 
 /**
  * Parse form string to array of positions
- * Handles: "1-2-3", "11P-2F", "0-1-2", "-06625", "22966-", etc.
- * IMPROVED: Handles leading/trailing dashes and malformed strings
+ * 
+ * Format: Each CHARACTER is a separate race result:
+ * - "1" = 1st place
+ * - "2" = 2nd place
+ * - "3" = 3rd place
+ * - ...
+ * - "9" = 9th place
+ * - "0" = 10th or worse
+ * - "P" = Pulled up (did not finish)
+ * - "F" = Fell (did not finish)
+ * - "U" = Unseated rider (did not finish)
+ * - "R" = Refused (did not finish)
+ * - "-" or "/" = Separator (ignored)
+ * 
+ * Examples:
+ * - "11-454" → [1, 1, 4, 5, 4] (won twice, then 4th, 5th, 4th)
+ * - "160-62" → [1, 6, 10+, 6, 2] (won, 6th, 10th+, 6th, 2nd)
+ * - "P-P-F" → [99, 99, 99] (pulled up, pulled up, fell)
  */
 function parseFormString(form: string): number[] {
     if (!form) return [];
     
     const positions: number[] = [];
     
-    // Clean the form string: remove leading/trailing dashes and spaces
-    const cleaned = form.trim().replace(/^-+|-+$/g, '');
+    // Remove whitespace
+    const cleaned = form.trim();
     
     if (cleaned.length === 0) return [];
     
-    // Split by dash
-    const parts = cleaned.split('-').filter(part => part.trim().length > 0);
-    
-    for (const part of parts) {
-        const trimmedPart = part.trim();
+    // Process each character individually
+    for (let i = 0; i < cleaned.length; i++) {
+        const char = cleaned[i].toUpperCase();
         
-        // Skip empty parts
-        if (trimmedPart.length === 0) continue;
-        
-        // Extract numeric position, ignoring letters (P, F, U, etc.)
-        const match = trimmedPart.match(/(\d+)/);
-        
-        if (match) {
-            const position = parseInt(match[1]);
-            
-            // Valid position (1-30 is reasonable, higher is likely an error)
-            if (position > 0 && position <= 30) {
-                positions.push(position);
-            } else if (position === 0) {
-                // "0" sometimes means non-runner or void race
-                positions.push(99); // Treat as non-finisher
-            }
-        } 
-        // Handle special cases (letters only)
-        else if (/[PFUR]/i.test(trimmedPart)) {
-            // P = Pulled up, F = Fell, U = Unseated, R = Refused
-            positions.push(99); // Treat as non-finisher
+        // Skip separators
+        if (char === '-' || char === '/' || char === ' ') {
+            continue;
         }
-        // Handle "/" (sometimes used for divisions)
-        else if (trimmedPart === '/') {
-            continue; // Skip division markers
+        
+        // Handle numeric positions
+        if (char >= '1' && char <= '9') {
+            const position = parseInt(char);
+            positions.push(position);
         }
+        // Handle "0" = 10th or worse
+        else if (char === '0') {
+            positions.push(12); // Treat as 12th (estimate for "10th or worse")
+        }
+        // Handle non-finishers
+        else if (char === 'P' || char === 'F' || char === 'U' || char === 'R') {
+            positions.push(99); // Non-finisher
+        }
+        // Unknown character - log warning
         else {
-            // Unparseable token - log warning but continue
-            console.warn(`⚠️ Unparseable form token: "${trimmedPart}" in form string "${form}"`);
+            console.warn(`   ⚠️ Unknown form character: "${char}" in form string "${form}"`);
         }
     }
     
