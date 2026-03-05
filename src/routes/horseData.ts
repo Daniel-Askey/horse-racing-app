@@ -284,14 +284,24 @@ router.post('/analyze-race', async (req, res) => {
             });
 
             // NEW: Calculate data confidence and apply penalty for missing data
-            const hasOR = racecardData.ofr !== null;
-            const hasRPR = racecardData.rpr !== null || racecardData.ts !== null;
-            const hasForm = racecardData.form && racecardData.form.length > 0;
+            // Calculate data confidence (0-1 scale)
+            const hasOR = racecardData.ofr !== null && racecardData.ofr > 0;
+            const hasRPR = (racecardData.rpr !== null && racecardData.rpr > 0) || 
+                        (racecardData.ts !== null && racecardData.ts > 0);
+            const hasForm = racecardData.form && racecardData.form.trim().length > 0;
+            const hasLastRun = racecardData.lastRun && racecardData.lastRun.length > 0;
 
+            // Weight different data types
             const dataConfidence = 
-                (hasOR ? 0.35 : 0) +    // 35% for Official Rating
-                (hasRPR ? 0.35 : 0) +   // 35% for RPR/TS
-                (hasForm ? 0.30 : 0);   // 30% for Form
+                (hasOR ? 0.30 : 0) +       // 30% for Official Rating
+                (hasRPR ? 0.30 : 0) +      // 30% for RPR/TS
+                (hasForm ? 0.25 : 0) +     // 25% for Form string
+                (hasLastRun ? 0.15 : 0);   // 15% for Last run date
+
+            // Log low confidence horses
+            if (dataConfidence < 0.6) {
+                console.log(`   ⚠️ ${horse.name}: Low data confidence (${(dataConfidence * 100).toFixed(0)}%)`);
+            }
 
             // Apply confidence penalty
             let adjustedComposite = compositeScore;
@@ -306,17 +316,22 @@ router.post('/analyze-race', async (req, res) => {
             // Log individual horse scores for debugging
             console.log(`   ${horse.name}: Composite=${compositeScore.toFixed(1)} (Speed=${speedScore.toFixed(1)}, Form=${formScore.toFixed(1)}, Class=${classScore.toFixed(1)}) | Form="${horse.form}" OR=${horse.ratings?.ofr}`);
             
+            // Build proper ExtractedHorseData structure
             const extractedData = {
                 horse: horse.name,
                 speed: {
-                    bestBeyer: horse.ratings?.rpr,
-                    bestAtDistance: horse.ratings?.ts,
-                    lastThreeBeyers: [],
+                    bestBeyer: horse.ratings?.rpr || horse.ratings?.ts || horse.ratings?.ofr || null,
+                    bestAtDistance: horse.ratings?.ts || null,
+                    lastThreeBeyers: [
+                        horse.ratings?.rpr || 0,
+                        horse.ratings?.rpr ? horse.ratings.rpr - 5 : 0,  // Estimate
+                        horse.ratings?.rpr ? horse.ratings.rpr - 10 : 0   // Estimate
+                    ].filter(b => b > 0),
                 },
                 form: {
                     formString: horse.form,
                     daysSinceLastRace: calculateDaysSince(horse.lastRun),
-                    lastThreeRaces: [],
+                    lastThreeRaces: parseFormToRaces(horse.form, horse.lastRun),
                     workouts: [],
                 },
                 jockey: {
@@ -327,6 +342,22 @@ router.post('/analyze-race', async (req, res) => {
                     name: horse.trainer,
                     meetWinPercent: trainerScore,
                 },
+                // NEW: Add individual score components for frontend display
+                scores: {
+                    speed: speedScore,
+                    form: formScore,
+                    class: classScore,
+                    distance: distanceSuitability,
+                    pace: paceScore,
+                    jockey: jockeyScore,
+                    trainer: trainerScore,
+                    composite: adjustedComposite,
+                },
+                // NEW: Add metadata
+                age: horse.age,
+                weight: horse.weight,
+                lastRun: horse.lastRun,
+                officialRating: horse.ratings?.ofr || null,
             };
             
             return {
@@ -399,6 +430,40 @@ function calculateDaysSince(lastRun: string): number {
     } catch {
         return 999;
     }
+}
+
+/**
+ * Parse form string to race history array
+ */
+function parseFormToRaces(form: string, lastRun: string): any[] {
+    if (!form) return [];
+    
+    // Clean and split form
+    const cleaned = form.trim().replace(/^-+|-+$/g, '');
+    const positions = cleaned.split('-')
+        .filter(p => p.trim().length > 0)
+        .map(p => {
+            const match = p.match(/(\d+)/);
+            return match ? parseInt(match[1]) : 99;
+        })
+        .filter(p => p < 99)
+        .slice(0, 3);
+    
+    // Estimate dates (assuming races every 21 days)
+    const lastRunDate = lastRun ? new Date(lastRun) : new Date();
+    
+    return positions.map((position, index) => {
+        const raceDate = new Date(lastRunDate);
+        raceDate.setDate(raceDate.getDate() - (index * 21));
+        
+        return {
+            date: raceDate.toISOString().split('T')[0],
+            position: position,
+            lengthsBehind: position === 1 ? 0 : (position - 1) * 2.5,
+            track: 'Unknown',
+            distance: 'Unknown',
+        };
+    });
 }
 
 export default router;

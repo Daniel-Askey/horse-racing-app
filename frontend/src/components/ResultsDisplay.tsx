@@ -59,6 +59,7 @@ export const ResultsDisplay: React.FC<{ results: AnalysisResults }> = ({ results
               <th scope="col" className="px-4 py-3 text-center hidden md:table-cell">Speed (30%)</th>
               <th scope="col" className="px-4 py-3 text-center hidden md:table-cell">Form (30%)</th>
               <th scope="col" className="px-4 py-3 text-center hidden md:table-cell">Class (20%)</th>
+              <th scope="col" className="px-4 py-3 text-center hidden lg:table-cell">Distance (10%)</th>
               <th scope="col" className="px-4 py-3"></th>
             </tr>
           </thead>
@@ -86,6 +87,9 @@ export const ResultsDisplay: React.FC<{ results: AnalysisResults }> = ({ results
                   <td className="px-4 py-4 text-center hidden md:table-cell">
                     <ScoreCell score={horse.scores.class} />
                   </td>
+                  <td className="px-4 py-4 text-center hidden lg:table-cell">
+                    <ScoreCell score={horse.scores.distance ?? 50} />
+                  </td>
                   <td className="px-4 py-4 text-right">
                     <button className="text-gray-400 hover:text-cyan-400">
                       {expandedHorse === horse.entry.postPosition ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
@@ -94,7 +98,7 @@ export const ResultsDisplay: React.FC<{ results: AnalysisResults }> = ({ results
                 </tr>
                 {expandedHorse === horse.entry.postPosition && (
                   <tr>
-                    <td colSpan={7} className="p-0">
+                    <td colSpan={8} className="p-0">
                       <div className="bg-gray-900/50 p-4">
                         <HorseDetail horseAnalysis={horse} />
                       </div>

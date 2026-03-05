@@ -52,12 +52,13 @@ export const HorseDetail: React.FC<HorseDetailProps> = ({ horseAnalysis }) => {
         <Card variant="inner">
           <h5 className="text-lg font-semibold mb-3 text-white">Score Breakdown</h5>
           <div className="space-y-4">
-            <ScoreProgressBar label="Speed" score={scores.speed} weight={30} />
-            <ScoreProgressBar label="Form" score={scores.form} weight={30} />
-            <ScoreProgressBar label="Class" score={scores.class} weight={20} />
-            <ScoreProgressBar label="Pace" score={scores.pace} weight={10} />
-            <ScoreProgressBar label="Jockey" score={scores.jockey} weight={5} />
-            <ScoreProgressBar label="Trainer" score={scores.trainer} weight={5} />
+            <ScoreProgressBar label="Speed" score={scores.speed} weight={27} />
+            <ScoreProgressBar label="Form" score={scores.form} weight={27} />
+            <ScoreProgressBar label="Class" score={scores.class} weight={18} />
+            <ScoreProgressBar label="Distance" score={scores.distance ?? 50} weight={10} />
+            <ScoreProgressBar label="Pace" score={scores.pace ?? 50} weight={13} />
+            <ScoreProgressBar label="Jockey" score={scores.jockey ?? 50} weight={3} />
+            <ScoreProgressBar label="Trainer" score={scores.trainer ?? 50} weight={2} />
           </div>
         </Card>
         
@@ -65,12 +66,16 @@ export const HorseDetail: React.FC<HorseDetailProps> = ({ horseAnalysis }) => {
           <Card variant="inner">
             <h5 className="text-lg font-semibold mb-2 text-white">Key Data Points</h5>
             <ul className="text-sm text-gray-300 space-y-1">
-              <li><strong>Best Beyer Speed Figure:</strong> {extractedData.speed.bestBeyer}</li>
-              <li><strong>Days Since Last Race:</strong> {extractedData.form.daysSinceLastRace}</li>
-              <li><strong>Jockey Win % (Meet):</strong> {extractedData.jockey.meetWinPercent}%</li>
-              <li><strong>Trainer Win % (Meet):</strong> {extractedData.trainer.meetWinPercent}%</li>
-              <li><strong>Weight:</strong> {entry.weight} lbs</li>
-              <li><strong>Morning Line Odds:</strong> {entry.morningLineOdds}</li>
+              <li><strong>Best Beyer Speed Figure:</strong> {extractedData.speed?.bestBeyer ?? 'N/A'}</li>
+              <li><strong>Days Since Last Race:</strong> {extractedData.form?.daysSinceLastRace ?? 'Unknown'}</li>
+              <li><strong>Jockey:</strong> {entry.jockey}</li>
+              <li><strong>Jockey Win % (Meet):</strong> {extractedData.jockey?.meetWinPercent?.toFixed(0) ?? 50}%</li>
+              <li><strong>Trainer:</strong> {entry.trainer}</li>
+              <li><strong>Trainer Win % (Meet):</strong> {extractedData.trainer?.meetWinPercent?.toFixed(0) ?? 50}%</li>
+              <li><strong>Official Rating:</strong> {extractedData.officialRating ?? 'N/A'}</li>
+              <li><strong>Age:</strong> {extractedData.age ?? 'Unknown'}</li>
+              <li><strong>Weight:</strong> {extractedData.weight ?? 'Unknown'} lbs</li>
+              <li><strong>Last Run:</strong> {extractedData.lastRun ?? 'Unknown'}</li>
             </ul>
           </Card>
           <Card variant="inner">

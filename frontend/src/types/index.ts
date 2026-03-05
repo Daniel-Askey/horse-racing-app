@@ -27,24 +27,21 @@ export interface HorseEntry {
 export interface ExtractedHorseData {
   horse: string;
   speed: {
-    bestBeyer: number;
-    bestAtDistance: number;
+    bestBeyer: number | null;
+    bestAtDistance: number | null;
     lastThreeBeyers: number[];
   };
   form: {
-    lastThreeRaces: {
+    formString?: string;
+    lastThreeRaces: Array<{
       date: string;
       position: number;
       lengthsBehind: number;
       track: string;
       distance: string;
-    }[];
+    }>;
     daysSinceLastRace: number;
-    workouts: {
-      date: string;
-      distance: string;
-      timeSeconds: number;
-    }[];
+    workouts: any[];
   };
   jockey: {
     name: string;
@@ -54,13 +51,18 @@ export interface ExtractedHorseData {
     name: string;
     meetWinPercent: number;
   };
+  // NEW FIELDS:
+  age?: number;
+  weight?: number;
+  lastRun?: string;
+  officialRating?: number | null;
 }
 
-// FIX: Created a dedicated interface for horse scores to ensure type safety.
 export interface HorseScores {
   speed: number;
   form: number;
   class: number;
+  distance?: number;  // NEW
   pace: number;
   jockey: number;
   trainer: number;

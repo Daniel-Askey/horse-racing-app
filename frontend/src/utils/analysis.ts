@@ -9,13 +9,13 @@ const normalize = (value: number, max: number, invert: boolean = false): number 
 };
 
 const normalizeSpeed = (data: ExtractedHorseData['speed']): number => {
-    const beyerScore = normalize(data.bestBeyer, 125);
-    const distanceScore = normalize(data.bestAtDistance, 120);
+    const beyerScore = normalize(data.bestBeyer ?? 0, 125);
+    const distanceScore = normalize(data.bestAtDistance ?? 0, 120);
     const recentAverage = data.lastThreeBeyers.length > 0
         ? data.lastThreeBeyers.reduce((a, b) => a + b, 0) / data.lastThreeBeyers.length
         : 70; // Default if no data
-    const recentScore = normalize(recentAverage, 120);
-    return (beyerScore * 0.5) + (distanceScore * 0.2) + (recentScore * 0.3);
+    
+    return (beyerScore * 0.4) + (distanceScore * 0.3) + (normalize(recentAverage, 110) * 0.3);
 };
 
 const normalizeForm = (data: ExtractedHorseData['form']): number => {
